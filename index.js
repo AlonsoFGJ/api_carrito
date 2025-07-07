@@ -13,6 +13,9 @@ const dbConfig = {
 }
 const API_KEY = 'apikeysecreta123'
 
+const cors = require('cors');
+app.use(cors());
+
 function validarApiKey(req, res, next){
     const apikeyEntregada = req.headers['x-api-key']
     if(!apikeyEntregada || apikeyEntregada!==API_KEY){
@@ -20,6 +23,7 @@ function validarApiKey(req, res, next){
     }
     next()
 }
+
 //3. Middleware:
 app.use(express.json())
 
