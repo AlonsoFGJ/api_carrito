@@ -83,6 +83,37 @@ app.get('/info_carritos/:rut', validarApiKey, async (req, res) => {
     }
 });
 
+// Obtener carrito por ID
+app.get('/info_carrito/:id', validarApiKey, async (req, res) => {
+    let cone;
+    try {
+        cone = await oracledb.getConnection(dbConfig);
+        const idCarrito = Number(req.params.id); // ✅ Cambiado a 'rut'
+
+        const result = await cone.execute(
+            `SELECT * FROM info_carrito WHERE id_carrito = :id_carrito`,
+            { id_carrito: {val: idCarrito, type: oracledb.NUMBER} } // ✅ Usamos bind variables correctamente
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Carrito no encontrado" });
+        }
+
+        const row = result.rows[0];
+        res.status(200).json({
+            id_carrito: row[0],
+            rut_usuario: row[1],
+            descripcion_carrito: row[2],
+            precio_total: row[3]
+        });
+
+    } catch (ex) {
+        res.status(500).json({ error: ex.message });
+    } finally {
+        if (cone) await cone.close();
+    }
+});
+
 // Crear un nuevo carrito
 app.post('/info_carritos', validarApiKey, async (req, res) => {
     const { id_carrito, rut_usuario, descripcion_carrito, precio_total } = req.body
