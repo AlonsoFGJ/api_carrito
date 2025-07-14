@@ -178,43 +178,20 @@ app.delete('/info_carritos/:id', validarApiKey, async (req, res) => {
     }
 })
 
-// Actualización parcial de un carrito
-app.patch('/info_carritos/:id', validarApiKey, async (req, res) => {
-    const { rut_usuario, descripcion_carrito, precio_total } = req.body
-    let campos = []
-    let valores = {}
-
-    if (rut_usuario) {
-        campos.push("rut_usuario = :rut")
-        valores.rut = rut_usuario
-    }
-    if (descripcion_carrito) {
-        campos.push("descripcion_carrito = :descripcion")
-        valores.descripcion = descripcion_carrito
-    }
-    if (precio_total !== undefined) {
-        campos.push("precio_total = :precio")
-        valores.precio = precio_total
-    }
-
-    if (campos.length === 0) {
-        return res.status(400).json({ error: "Debe enviar al menos un campo para actualizar" })
-    }
-
-    valores.id = req.params.id
-
+// Eliminar un carrito por RUT
+app.delete('/info_carritos/por-rut/:rut_usuario', validarApiKey, async (req, res) => {
     let cone
     try {
         cone = await oracledb.getConnection(dbConfig)
         const result = await cone.execute(
-            `UPDATE info_carrito SET ${campos.join(', ')} WHERE id_carrito = :id`,
-            valores,
+            `DELETE FROM info_carrito WHERE rut_usuario = :rut_usuario`,
+            [req.params.rut_usuario],
             { autoCommit: true }
         )
         if (result.rowsAffected === 0) {
             return res.status(404).json({ error: "Carrito no encontrado" })
         }
-        res.status(200).json({ mensaje: "Carrito actualizado parcialmente con éxito" })
+        res.status(200).json({ mensaje: "Carrito eliminado con éxito" })
     } catch (ex) {
         res.status(500).json({ error: ex.message })
     } finally {
@@ -222,6 +199,50 @@ app.patch('/info_carritos/:id', validarApiKey, async (req, res) => {
     }
 })
 
+// Actualización parcial de un carrito por RUT
+app.patch('/info_carritos/por-rut/:rut_usuario', validarApiKey, async (req, res) => {
+    const { descripcion_carrito, precio_total } = req.body;
+    let campos = [];
+    let valores = {};
+
+    // Validar y agregar campos a actualizar
+    if (descripcion_carrito) {
+        campos.push("descripcion_carrito = :descripcion");
+        valores.descripcion = descripcion_carrito;
+    }
+    if (precio_total !== undefined) {
+        campos.push("precio_total = :precio");
+        valores.precio = precio_total;
+    }
+
+    // Validar que al menos un campo se quiera actualizar
+    if (campos.length === 0) {
+        return res.status(400).json({ error: "Debe enviar al menos un campo para actualizar" });
+    }
+
+    // Agregar el RUT a los valores y construir query
+    valores.rut_usuario = req.params.rut_usuario;
+
+    let cone;
+    try {
+        cone = await oracledb.getConnection(dbConfig);
+        const result = await cone.execute(
+            `UPDATE info_carrito SET ${campos.join(', ')} WHERE rut_usuario = :rut_usuario`,
+            valores,
+            { autoCommit: true }
+        );
+
+        if (result.rowsAffected === 0) {
+            return res.status(404).json({ error: "Carrito no encontrado para el RUT especificado" });
+        }
+
+        res.status(200).json({ mensaje: "Carrito actualizado parcialmente con éxito" });
+    } catch (ex) {
+        res.status(500).json({ error: ex.message });
+    } finally {
+        if (cone) cone.close();
+    }
+})
 
 //5. Levantar la API (Dejarla activa)
 app.listen(puerto, () => {
